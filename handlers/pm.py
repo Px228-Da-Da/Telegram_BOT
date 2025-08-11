@@ -221,6 +221,7 @@
 #     # Отвечаем PM
 #     await callback.answer("Задача возвращена исполнителю.", show_alert=True)
 #     await callback.message.edit_text(f"❌ Задача #{task_id} — возвращена исполнителю.")
+
 # pm.py
 from aiogram import Router, types, F
 from aiogram.fsm.state import StatesGroup, State
@@ -235,8 +236,9 @@ from config import PM_IDS, TIMEZONE
 from db import get_conn
 from utils.hash import dedupe_hash
 from utils.time import now_ts, humanize_ts
-from keyboards import pm_menu
+from keyboards import pm_menu, direct_assign_menu
 from services.export import generate_csv_for_last_week
+from services.direct import generate_token
 from scheduler import log_event
 
 router = Router()
@@ -250,6 +252,7 @@ class AddTask(StatesGroup):
     est_hours = State()
     deadline = State()
     publish_mode = State()
+    direct_type = State()
     allowed_usernames = State()
 
 class SearchTask(StatesGroup):
@@ -275,7 +278,8 @@ def save_task(data, creator_id):
     task_id = cur.lastrowid
     conn.commit()
     conn.close()
-    log_event(creator_id, "create", task_id)
+    log_event(creator_id, "create", task_id, f"mode: {data['publish_mode']}")
+    return task_id
 
 async def display_task_list(message: types.Message, tasks: list, title: str):
     """Универсальная функция для отображения списка задач."""
@@ -285,9 +289,7 @@ async def display_task_list(message: types.Message, tasks: list, title: str):
 
     await message.answer(f"<b>{title}:</b>")
     for t in tasks:
-        # ИСПРАВЛЕННАЯ СТРОКА:
         assignee_info = f"Исполнитель: @{t['assignee_username']}\n" if 'assignee_username' in t.keys() and t['assignee_username'] else ""
-        
         text = (
             f"<b>#{t['id']} — {t['title']}</b>\n"
             f"Статус: <code>{t['status']}</code>\n"
@@ -454,13 +456,33 @@ async def addtask_pubmode(callback: types.CallbackQuery, state: FSMContext):
     mode = callback.data.replace("pm_pub_", "")
     await state.update_data(publish_mode=mode)
     if mode == "direct":
-        await state.set_state(AddTask.allowed_usernames)
-        await callback.message.edit_text("Список @username через пробел:")
+        await state.set_state(AddTask.direct_type)
+        await callback.message.edit_text("Выберите способ точечного назначения:", reply_markup=direct_assign_menu())
     else:
         data = await state.get_data()
         save_task(data, callback.from_user.id)
         await state.clear()
-        await callback.message.edit_text("✅ Задача создана", reply_markup=pm_menu())
+        await callback.message.edit_text("✅ Открытая задача создана", reply_markup=pm_menu())
+    await callback.answer()
+
+@router.callback_query(F.data.startswith("direct_type_"))
+async def addtask_direct_type(callback: types.CallbackQuery, state: FSMContext):
+    direct_type = callback.data.replace("direct_type_", "")
+    if direct_type == "username":
+        await state.set_state(AddTask.allowed_usernames)
+        await callback.message.edit_text("Введите @username исполнителей через пробел:")
+    else: # deeplink
+        data = await state.get_data()
+        task_id = save_task(data, callback.from_user.id)
+        token = generate_token(task_id)
+        bot_info = await callback.bot.get_me()
+        link = f"https://t.me/{bot_info.username}?start=claim_{token}"
+        await state.clear()
+        await callback.message.edit_text(
+            f"✅ Задача #{task_id} создана.\n\n"
+            f"<b>Отправьте эту ссылку исполнителю:</b>\n<code>{link}</code>",
+            reply_markup=pm_menu()
+        )
     await callback.answer()
 
 @router.message(AddTask.allowed_usernames)
@@ -528,3 +550,4 @@ async def pm_return(callback: types.CallbackQuery):
 
     await callback.answer("Задача возвращена исполнителю.", show_alert=True)
     await callback.message.edit_text(f"❌ Задача #{task_id} — возвращена исполнителю.")
+

@@ -21,3 +21,10 @@ def pm_review_kb(task_id: int):
         [InlineKeyboardButton(text="✅ Принять работу", callback_data=f"pm_accept_{task_id}")],
         [InlineKeyboardButton(text="❌ Вернуть", callback_data=f"pm_return_{task_id}")]
     ])
+
+# НОВАЯ КЛАВИАТУРА
+def direct_assign_menu():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="По @username", callback_data="direct_type_username")],
+        [InlineKeyboardButton(text="Сгенерировать ссылку", callback_data="direct_type_deeplink")]
+    ])
