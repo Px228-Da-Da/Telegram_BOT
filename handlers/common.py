@@ -1,6 +1,6 @@
 # common.py
-from aiogram import Router, types, F
-from aiogram.filters import Command, CommandStart
+from aiogram import Router, types
+from aiogram.filters import Command, CommandStart, CommandObject
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from config import PM_IDS
@@ -12,7 +12,7 @@ from services.direct import validate_token
 router = Router()
 
 @router.message(CommandStart())
-async def cmd_start(message: types.Message):
+async def cmd_start(message: types.Message, command: CommandObject):
     # Логика регистрации/обновления пользователя
     tg_id = message.from_user.id
     username = message.from_user.username or ""
@@ -28,9 +28,8 @@ async def cmd_start(message: types.Message):
     conn.commit()
     
     # ОБРАБОТКА DEEPLINK
-    args = message.text.split()
-    if len(args) > 1 and args[1].startswith("claim_"):
-        token = args[1].replace("claim_", "")
+    if command.args and command.args.startswith("claim_"):
+        token = command.args.replace("claim_", "")
         task_id = validate_token(token)
         if task_id:
             task = conn.execute("SELECT * FROM tasks WHERE id = ? AND status = 'new'", (task_id,)).fetchone()
@@ -43,9 +42,9 @@ async def cmd_start(message: types.Message):
                 ])
                 await message.answer(text, reply_markup=kb)
             else:
-                await message.answer("Эта задача уже недоступна.")
+                await message.answer("Эта задача уже недоступна (взята другим исполнителем или удалена).")
         else:
-            await message.answer("Ссылка недействительна или устарела.")
+            await message.answer("Ссылка недействительна или ее срок истек.")
         conn.close()
         return
 

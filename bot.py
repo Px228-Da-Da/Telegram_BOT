@@ -27,7 +27,7 @@ async def main():
 
     print("Бот запущен...")
     
-    # УДАЛЯЕМ СТАРЫЙ WEBHOOK ПЕРЕД ЗАПУСКОМ
+    # Удаляем старый webhook перед запуском, чтобы избежать конфликтов
     await bot.delete_webhook(drop_pending_updates=True)
     
     # Запускаем бота в режиме опроса
