@@ -1,10 +1,9 @@
-# bot.py (обновленная версия)
+# bot.py
 import asyncio
 from aiogram import Bot, Dispatcher
 from config import BOT_TOKEN, EXPIRE_SCAN_INTERVAL
 from db import init_db
 from handlers import common, pm, exec
-# Новые импорты
 from scheduler import scheduler, check_expired_tasks, schedule_existing_tasks
 
 async def main():
@@ -27,7 +26,11 @@ async def main():
     scheduler.start()
 
     print("Бот запущен...")
-    # Передаем экземпляр бота в хэндлеры для дальнейшего использования
+    
+    # Удаляем старый webhook перед запуском, чтобы избежать конфликтов
+    await bot.delete_webhook(drop_pending_updates=True)
+    
+    # Запускаем бота в режиме опроса
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
