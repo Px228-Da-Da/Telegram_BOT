@@ -1,0 +1,10 @@
+BOT_TOKEN = "8352066610:AAEZJwG02POlFwChovgZc1-2XLJlntm_TwA"
+PM_IDS = {2080541364}              # tg_id админов
+MAX_ACTIVE_TASKS = 1
+REMINDERS_MIN = [60, 15, 5]
+EXPIRE_SCAN_INTERVAL = 60
+DIRECT_REOPEN_POLICY = "same"    # 'same' | 'open'
+DB_PATH = "./data/bot.db"
+EXPORT_DIR = "./exports"
+DEEP_LINK_SECRET = "change_me"
+TIMEZONE = "Europe/Kyiv"
